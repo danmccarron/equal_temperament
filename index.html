@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TET Interval Player</title>
+<style>
+:root{--bg:#f7f6f2;--fg:#1d1d1b;--muted:#6b6a64;--card:#fff;--line:#d9d6cc;--accent:#2f5d8a;--accent-fg:#fff;--hi:#e4eef7;--just:#c2410c;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#17181a;--fg:#ececea;--muted:#9a9990;--card:#222427;--line:#3a3d41;--accent:#6fa5d6;--accent-fg:#101214;--hi:#27384a;--just:#fbbf24}}
+:root[data-theme="dark"]{--bg:#17181a;--fg:#ececea;--muted:#9a9990;--card:#222427;--line:#3a3d41;--accent:#6fa5d6;--accent-fg:#101214;--hi:#27384a;--just:#fbbf24}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.4}
+main{max-width:1100px;margin:0 auto;padding:16px}
+.layout{display:grid;grid-template-columns:minmax(240px,300px) 1fr;gap:24px;align-items:start}
+@media (max-width:800px){.layout{grid-template-columns:1fr}}
+h1{font-size:1.4rem;margin:0 0 4px}
+p.sub{margin:0 0 14px;color:var(--muted);font-size:.85rem}
+.controls{display:flex;flex-direction:column;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px}
+label{display:flex;flex-direction:column;font-size:.8rem;color:var(--muted);gap:4px}
+label b{color:var(--fg)}
+input[type=range]{padding:0;accent-color:var(--accent)}
+label.chk{flex-direction:row;align-items:center;gap:8px;color:var(--fg);font-size:.85rem}
+input[type=checkbox]{padding:0;width:auto;margin:0;accent-color:var(--accent)}
+.set{border-top:1px solid var(--line);padding-top:10px;font-size:.85rem}
+.set summary{cursor:pointer;color:var(--muted)}
+.set label{margin-top:8px}
+input,select{font-size:1.05rem;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg)}
+#result{background:var(--hi);border-radius:10px;padding:14px;margin-bottom:16px;min-height:6.5em}
+#result .big{font-size:1.6rem;font-weight:600}
+#result .small{color:var(--muted);font-size:.85rem}
+.chart{position:relative}
+#scope{display:block;position:sticky;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);z-index:6;width:100%;height:110px;margin-top:10px;background:var(--card);border:1px solid var(--line);border-radius:10px}
+.colhead{display:flex;justify-content:space-between;gap:8px;font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:0 0 6px}
+.colhead span:last-child{color:var(--just);font-weight:600}
+.chart button{position:absolute;width:140px;height:26px;box-sizing:border-box;padding:0 6px 3px;font:inherit;font-size:.78rem;line-height:20px;white-space:nowrap;overflow:hidden;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--fg);cursor:pointer;z-index:2}
+.chart button.t{left:0}
+.chart button.just{opacity:var(--op,1);right:0;border-color:var(--just);color:var(--just);font-weight:600}
+.chart button:hover{border-color:var(--accent);opacity:1}
+.chart button.on{opacity:1;background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.bar{position:absolute;left:5px;right:5px;bottom:2px;height:3px;border-radius:2px;background:var(--line);overflow:hidden}
+.bar b{display:block;height:100%;background:var(--accent)}
+.chart button.on .bar{background:rgba(255,255,255,.25)}
+.chart button.on .bar b{background:var(--accent-fg)}
+.ln{position:absolute;left:142px;right:142px;height:1px;background:var(--line);pointer-events:none}
+.ln.j{height:var(--h,2px);background:var(--just);opacity:var(--op,.85)}
+.ln.on{height:3px;background:var(--accent);opacity:1;z-index:1}
+#err{color:#b3261e;font-size:.85rem;min-height:1.2em;margin-bottom:8px}
+</style>
+</head>
+<body>
+<main>
+<div class="layout">
+<section class="side">
+<h1>TET interval player</h1>
+<div id="err"></div>
+<div id="result"><span class="small">Press a button to play an interval.</span></div>
+<div class="controls">
+<label>Base frequency (Hz)<input id="freq" type="number" value="220" min="20" max="2000" step="any"></label>
+<label><span>TET (steps per octave): <b id="tetv">12</b></span><input id="tet" type="range" value="12" min="1" max="72" step="1"></label>
+<label><span>Just intervals to show: <b id="justv">9</b></span><input id="just" type="range" value="9" min="0" max="30" step="1"></label>
+<label>Tone<select id="tone"><option value="sine">Sine</option><option value="triangle">Triangle</option><option value="square">Square</option><option value="sawtooth">Sawtooth</option><option value="organ">Organ</option><option value="bell">Bell</option><option value="pluck">Pluck</option><option value="pad">Pad</option><option value="epiano">Electric piano (FM)</option></select></label>
+<label><span>Note length: <b id="lenv">20</b> s</span><input id="len" type="range" value="20" min="0.5" max="30" step="0.5"></label>
+<label class="chk"><input type="checkbox" id="hold"> Hold interval</label>
+<details class="set"><summary>Settings</summary>
+<label>Max fraction denominator<input id="den" type="number" value="12" min="1" max="64" step="1"></label>
+</details>
+</div>
+</section>
+<section><div id="buttons"></div><canvas id="scope"></canvas></section>
+</div>
+</main>
+<script>
+var ctx=null,bus=null,analyser=null,voice=null,baseVoice=null,held=[];
+var freqIn=document.getElementById('freq'),tetIn=document.getElementById('tet'),denIn=document.getElementById('den'),justIn=document.getElementById('just'),toneSel=document.getElementById('tone'),lenIn=document.getElementById('len'),holdIn=document.getElementById('hold');
+var out=document.getElementById('result'),box=document.getElementById('buttons'),err=document.getElementById('err');
+
+function gcd(a,b){return b?gcd(b,a%b):a}
+function fmt(x){return (Math.round(x*100)/100).toString()}
+
+// ratio of step k out of n: 2^(k/n). It is an exact fraction only when k/n is a whole number.
+function ratioText(k,n){
+  if(k%n===0){return Math.pow(2,k/n)+'/1'}
+  return (Math.pow(2,k/n)).toFixed(6).replace(/0+$/,'')
+}
+
+// closest reduced fraction p/q (q <= D) to ratio r; c = signed error in cents (positive = r is sharp of p/q)
+function nearest(r,D){
+  var best=null;
+  for(var q=1;q<=D;q++){
+    var p=Math.round(r*q);
+    if(p<1||gcd(p,q)!==1)continue;
+    var c=1200*Math.log(r/(p/q))/Math.LN2;
+    if(!best||Math.abs(c)<Math.abs(best.c)-1e-9)best={p:p,q:q,c:c};
+  }
+  return best;
+}
+
+function addVoice(tone,hz,t,dur,dest,oscs,sustain){
+  var end=t+dur+0.05;
+  function osc(type,fr){var o=ctx.createOscillator();o.type=type;o.frequency.value=fr;oscs.push(o);o.start(t);o.stop(end);return o}
+  function gain(v,to){var g=ctx.createGain();g.gain.value=v;g.connect(to);return g}
+  function decay(g,v,sec){g.gain.setValueAtTime(v,t);if(!sustain){g.gain.exponentialRampToValueAtTime(0.0001,t+sec)}}
+  function lp(fr,q,to){var f=ctx.createBiquadFilter();f.type='lowpass';f.frequency.value=fr;f.Q.value=q;f.connect(to);return f}
+  var v=gain(1,dest),g,f,j;
+  if(tone==='sine'||tone==='triangle'||tone==='square'||tone==='sawtooth'){
+    v.gain.value=({sine:1,triangle:1,square:0.3,sawtooth:0.3})[tone];
+    osc(tone,hz).connect(v);
+  }else if(tone==='organ'){
+    [1,0.6,0.45,0.3,0.2,0.12,0.08].forEach(function(a,i){
+      if(hz*(i+1)<20000){osc('sine',hz*(i+1)).connect(gain(a*0.3,v))}
+    });
+  }else if(tone==='bell'){
+    var ratios=[1,2.76,5.4,8.93,13.3],amps=[1,0.6,0.4,0.25,0.15];
+    for(j=0;j<ratios.length;j++){
+      if(hz*ratios[j]>=20000){continue}
+      g=gain(amps[j]*0.35,v);decay(g,amps[j]*0.35,12/(1+j));
+      osc('sine',hz*ratios[j]).connect(g);
+    }
+  }else if(tone==='pluck'){
+    g=gain(0.4,v);decay(g,0.4,5);
+    f=lp(Math.min(hz*8,18000),1,g);
+    f.frequency.setValueAtTime(Math.min(hz*8,18000),t);
+    f.frequency.exponentialRampToValueAtTime(Math.max(hz*1.5,60),t+0.6);
+    osc('sawtooth',hz).connect(f);
+  }else if(tone==='pad'){
+    v.gain.setValueAtTime(0.0001,t);v.gain.linearRampToValueAtTime(0.3,t+0.6);
+    f=lp(Math.min(hz*3,12000),0.7,v);
+    [-9,0,9].forEach(function(c){var o=osc('sawtooth',hz);o.detune.value=c;o.connect(f)});
+  }else{
+    var car=osc('sine',hz),mod=osc('sine',hz),mg=ctx.createGain();
+    mg.gain.setValueAtTime(hz*1.8,t);
+    mg.gain.exponentialRampToValueAtTime(hz*0.15,t+1.2);
+    mod.connect(mg);mg.connect(car.frequency);
+    g=gain(0.6,v);decay(g,0.6,8);car.connect(g);
+  }
+}
+
+// sustain=true holds until stop(); otherwise the note fades out over len seconds
+function play(f,sustain,len){
+  if(!ctx){ctx=new (window.AudioContext||window.webkitAudioContext)();bus=ctx.createDynamicsCompressor();bus.connect(ctx.destination);analyser=ctx.createAnalyser();analyser.fftSize=4096;bus.connect(analyser)}
+  if(ctx.state==='suspended'){ctx.resume()}
+  var t=ctx.currentTime,dur=sustain?3600:len,oscs=[];
+  var master=ctx.createGain();
+  master.gain.setValueAtTime(0,t);
+  master.gain.linearRampToValueAtTime(0.25,t+0.02);
+  if(!sustain){master.gain.exponentialRampToValueAtTime(0.0001,t+Math.max(dur,0.2))}
+  master.connect(bus);
+  f.forEach(function(hz){addVoice(toneSel.value,hz,t,dur,master,oscs,sustain)});
+  var h={done:false,stop:function(){
+    if(h.done){return}
+    var s=ctx.currentTime;
+    master.gain.cancelScheduledValues(s);
+    master.gain.setValueAtTime(Math.max(master.gain.value,0.0001),s);
+    master.gain.exponentialRampToValueAtTime(0.0001,s+0.12);
+    oscs.forEach(function(o){try{o.stop(s+0.15)}catch(e){}});
+  }};
+  oscs[0].onended=function(){h.done=true;if(h.onend)h.onend()};
+  return h;
+}
+
+var JUST=[[3,2],[4,3],[5,3],[5,4],[7,4],[6,5],[7,5],[8,5],[9,5],[7,6],[11,6],[9,8],[16,9],[15,8],[16,15],[10,9],[10,7],[12,7],[8,7],[9,7],[14,9],[11,8],[16,11],[45,32],[64,45],[11,10],[15,14],[13,8],[21,16],[13,12]];
+function dir(c){return c>=0?'sharp':'flat'}
+
+function stopAll(){
+  if(voice&&!voice.done){voice.stop()}
+  held.forEach(function(h){h.voice.stop()});held=[];
+  if(baseVoice){baseVoice.stop();baseVoice=null}
+  Array.prototype.forEach.call(box.querySelectorAll('.chart button,.ln'),function(x){x.classList.remove('on')});
+}
+function setOn(b,on){b.classList.toggle('on',on);b._ln.classList.toggle('on',on)}
+function showHeld(){
+  var h=held[held.length-1];if(!h){return}
+  out.innerHTML=h.html+(held.length>1?'<div class="small">Holding base + '+held.map(function(x){return x.label}).join(', ')+'</div>':'');
+}
+function activate(b,hz,html,label){
+  var base=parseFloat(freqIn.value);
+  if(holdIn.checked){
+    var idx=-1;
+    held.forEach(function(h,i){if(h.b===b){idx=i}});
+    if(idx>=0){
+      held[idx].voice.stop();held.splice(idx,1);setOn(b,false);
+      if(!held.length&&baseVoice){baseVoice.stop();baseVoice=null}
+    }else{
+      if(!baseVoice){baseVoice=play([base],true)}
+      held.push({b:b,label:label,html:html,voice:play([hz],true)});
+      setOn(b,true);
+    }
+    showHeld();
+  }else{
+    var wasOn=b.classList.contains('on')&&voice&&!voice.done;
+    stopAll();
+    if(wasOn){return}
+    setOn(b,true);
+    voice=play([base,hz],false,parseFloat(lenIn.value));
+    voice.onend=function(){setOn(b,false)};
+    out.innerHTML=html;
+  }
+}
+
+function build(){
+  var base=parseFloat(freqIn.value),n=parseInt(tetIn.value,10),D=parseInt(denIn.value,10),J=parseInt(justIn.value,10);
+  stopAll();
+  document.getElementById('tetv').textContent=tetIn.value;document.getElementById('justv').textContent=justIn.value;
+  box.innerHTML='';
+  if(!(base>0)||!(n>=1)||n>72||!(D>=1)||D>64||!(J>=0)||J>JUST.length){err.textContent='Enter a frequency above 0 Hz, a TET from 1 to 72, a max denominator from 1 to 64 and 0 to '+JUST.length+' just intervals.';return}
+  if(base*2>20000){err.textContent='Top note would exceed 20 kHz. Try a lower base frequency.';return}
+  err.textContent='';
+  var items=[],k,i;
+  for(k=0;k<=n;k++){items.push({r:Math.pow(2,k/n),k:k,just:false})}
+  for(i=0;i<J;i++){items.push({r:JUST[i][0]/JUST[i][1],p:JUST[i][0],q:JUST[i][1],just:true,rank:i})}
+  var cols=[[],[]];
+  items.forEach(function(it){
+    var hz=base*it.r,b=document.createElement('button'),html;
+    if(it.just){
+      var lg=Math.log(it.r)/Math.LN2,kk=Math.round(n*lg),d=1200*kk/n-1200*lg;
+      b.className='just';
+      b.title='Just interval '+it.p+'/'+it.q;
+      b.innerHTML=fmt(hz)+' Hz '+it.p+'/'+it.q;
+      html='<div class="big">'+it.p+'/'+it.q+'</div><div>Just interval (exact ratio)</div><div class="small">'+fmt(base)+' Hz + '+fmt(hz)+' Hz &middot; closest TET step is step '+kk+' ('+fmt(base*Math.pow(2,kk/n))+' Hz), '+(Math.abs(d)<0.005?'exact':Math.abs(d).toFixed(2)+' cents '+dir(d)+' of it')+'</div>';
+    }else{
+      var nf=nearest(it.r,D),close=Math.max(0,1-Math.abs(nf.c)/50)*100,cents=1200*it.k/n;
+      var off=Math.abs(nf.c)<0.005?'exact match':Math.abs(nf.c).toFixed(2)+' cents '+dir(nf.c)+' of it';
+      b.className='t';
+      b.title='Step '+it.k+'. Closest fraction '+nf.p+'/'+nf.q+' ('+Math.abs(nf.c).toFixed(2)+' cents '+dir(nf.c)+')';
+      b.innerHTML=fmt(hz)+' Hz &asymp;'+nf.p+'/'+nf.q+'<i class="bar"><b style="width:'+close.toFixed(0)+'%"></b></i>';
+      html='<div class="big">'+ratioText(it.k,n)+'</div><div>Closest fraction (denominator up to '+D+'): <strong>'+nf.p+'/'+nf.q+'</strong> &mdash; '+off+'</div><div class="small">Step '+it.k+' of '+n+' &middot; '+fmt(base)+' Hz + '+fmt(hz)+' Hz &middot; '+cents.toFixed(1)+' cents above the base</div>';
+    }
+    it.b=b;it.hz=hz;it.html=html;it.label=it.just?it.p+'/'+it.q:ratioText(it.k,n);
+    cols[it.just?1:0].push(it);
+  });
+  var cnt=Math.max(n+1,J),pad=16,availH=Math.max(380,window.innerHeight-230);
+  var G=Math.max(20,Math.min(28,(availH-2*pad)/cnt)),bh=Math.floor(G)-2,H=Math.max(availH,cnt*G+2*pad);
+  var head=document.createElement('div');head.className='colhead';
+  head.innerHTML='<span>'+n+'-TET</span><span>&uarr; frequency (log scale)</span><span>Just intonation</span>';
+  box.appendChild(head);
+  var chart=document.createElement('div');chart.className='chart';chart.style.height=H+'px';box.appendChild(chart);
+  cols.forEach(function(col){
+    col.forEach(function(it){it.y=pad+(1-Math.log(it.r)/Math.LN2)*(H-2*pad)});
+    col.sort(function(a,b){return a.y-b.y});
+    col.forEach(function(it,i){it.by=i?Math.max(it.y,col[i-1].by+G):it.y});
+    for(var i=col.length-1;i>=0;i--){var mx=i===col.length-1?H-bh/2-1:col[i+1].by-G;if(col[i].by>mx)col[i].by=mx}
+    col.forEach(function(it){
+      var ln=document.createElement('div');
+      ln.className='ln'+(it.just?' j':'');
+      var lh=it.just?(it.rank<3?4:it.rank<6?3:it.rank<12?2:1):1,op=it.just?Math.max(0.1,Math.exp(-it.rank/6)):1;
+      if(it.just){ln.style.setProperty('--op',op.toFixed(2));it.b.style.setProperty('--op',Math.max(0.35,op).toFixed(2));ln.style.setProperty('--h',lh+'px')}
+      ln.style.top=(it.y-lh/2)+'px';
+      chart.appendChild(ln);
+      it.b._ln=ln;
+      it.b.style.top=(it.by-bh/2)+'px';it.b.style.height=bh+'px';it.b.style.lineHeight=(bh-5)+'px';if(bh<22){it.b.style.fontSize='.68rem'}
+      it.b.onclick=function(){activate(it.b,it.hz,it.html,it.label)};
+      chart.appendChild(it.b);
+    });
+  });
+}
+freqIn.addEventListener('input',build);
+tetIn.addEventListener('input',build);
+denIn.addEventListener('input',build);
+justIn.addEventListener('input',build);
+lenIn.addEventListener('input',function(){document.getElementById('lenv').textContent=lenIn.value});
+holdIn.addEventListener('change',stopAll);
+var lastH=window.innerHeight;
+window.addEventListener('resize',function(){if(Math.abs(window.innerHeight-lastH)>30){lastH=window.innerHeight;build()}});
+build();
+
+var scope=document.getElementById('scope'),sctx=scope.getContext('2d'),scopeBuf=null;
+function drawScope(){
+  requestAnimationFrame(drawScope);
+  var dpr=window.devicePixelRatio||1,w=scope.clientWidth,h=scope.clientHeight,i;
+  if(!w||!h){return}
+  if(scope.width!==Math.round(w*dpr)||scope.height!==Math.round(h*dpr)){scope.width=Math.round(w*dpr);scope.height=Math.round(h*dpr)}
+  var cs=getComputedStyle(document.documentElement);
+  sctx.setTransform(dpr,0,0,dpr,0,0);
+  sctx.clearRect(0,0,w,h);
+  sctx.strokeStyle=cs.getPropertyValue('--line').trim();sctx.lineWidth=1;
+  sctx.beginPath();sctx.moveTo(0,h/2);sctx.lineTo(w,h/2);sctx.stroke();
+  sctx.fillStyle=cs.getPropertyValue('--muted').trim();sctx.font='11px system-ui,sans-serif';
+  sctx.fillText('OSCILLOSCOPE',8,14);
+  if(!analyser){return}
+  var N=analyser.fftSize;
+  if(!scopeBuf){scopeBuf=new Float32Array(N)}
+  analyser.getFloatTimeDomainData(scopeBuf);
+  var base=parseFloat(freqIn.value)||220,W=Math.max(256,Math.min(2048,Math.round(4*ctx.sampleRate/base))),peak=0;
+  for(i=0;i<N;i++){var a=Math.abs(scopeBuf[i]);if(a>peak){peak=a}}
+  if(peak<0.002){return}
+  var st=0;
+  for(i=1;i<N-W;i++){if(scopeBuf[i-1]<0&&scopeBuf[i]>=0){st=i;break}}
+  var sc=0.42*h/Math.max(peak,0.02);
+  sctx.strokeStyle=cs.getPropertyValue('--accent').trim();sctx.lineWidth=1.5;
+  sctx.beginPath();
+  for(i=0;i<W;i++){
+    var x=i/(W-1)*w,y=h/2-scopeBuf[st+i]*sc;
+    if(i){sctx.lineTo(x,y)}else{sctx.moveTo(x,y)}
+  }
+  sctx.stroke();
+}
+drawScope();
+</script>
+</body>
+</html>
